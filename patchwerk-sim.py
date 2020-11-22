@@ -6,8 +6,8 @@
 # patchwerk will enrage during the last 5%, but we ignore that since tanks will save shield wall
 # does not take into account batching
 
-BEARTANK_MAX_HEALTH = 11000
-OFFTANK_MAX_HEALTH = 11000
+import sys
+
 FIGHT_LENGTH = 60 * 4
 AVERAGE_MITIGATION = 0.7
 PATCHWERK_MISS_CHANCE = 0.3
@@ -33,11 +33,6 @@ import heapq
 import statistics
 import random
 
-
-def get_hateful_strike_damage():
-    damage = random.random() * (29000 - 22000) + 22000
-    damage *= (1 - AVERAGE_MITIGATION)
-    return round(damage)
 
 # tuple is average base healing and unmodified healing cost and cast time
 healing_spell_data = {
@@ -86,22 +81,28 @@ class Tank:
         self.current_health = self.max_health
 
     # returns True if tank dies, False otherwise
-    def get_smashed(self, dmg):
+    def get_smashed(self):
         # check for misses
         if random.random() < self.dodge_parry:
-            # print("Hateful Strike MISSES {}".format(self.name))
+            print("Hateful Strike MISSES {}".format(self.name))
             return False
 
-        # print("Hateful Strike hits {} ({} hp) for {} dmg".format(self.name, self.current_health, dmg))
+        dmg = self.get_damage()
+        print("Hateful Strike hits {} ({} hp) for {} dmg".format(self.name, self.current_health, dmg))
         self.current_health -= dmg
         if self.current_health <= 0:
-            # print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
+            print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
             return True
         return False
 
+    def get_damage(self):
+        damage = random.random() * (29000 - 22000) + 22000
+        damage *= (1 - self.mitigation)
+        return round(damage)
+
     # returns a tuple with total raw healing and overhealing
     def get_healed(self, heal_qty):
-        # print("{} ({} hp) is healed for {}".format(self.name, self.current_health, heal_qty))
+        print("{} ({} hp) is healed for {}".format(self.name, self.current_health, heal_qty))
         self.current_health += heal_qty
         overhealing = 0
         if self.current_health > self.max_health:
@@ -129,34 +130,9 @@ def get_hateful_target(tanks):
 
     return tanks[highest_health_tank_index], highest_health_tank_index
 
-# def get_hateful_target(tanks_health):
-#     return tanks_health.index(max(tanks_health))
-
 # tank 0 is healed by healers [1, 2, 3], tank 1 by healers [4, 5, 6], tank 2 by healers [7, 8, 9]
 def get_heal_target(healer_idx):
     return (healer_idx + 2) // 3 - 1
-
-# # returns a tuple with total raw healing and overhealing
-# def heal_tank(tanks_health, tank_idx, heal_qty, max_tanks_health):
-#     # print("Tank #{} ({} hp) is healed for {}".format(tank_idx, tanks_health[tank_idx], heal_qty))
-#     tanks_health[tank_idx] += heal_qty
-#     overhealing = 0
-#     if tanks_health[tank_idx] > max_tanks_health:
-#         overhealing = tanks_health[tank_idx] - max_tanks_health
-#         tanks_health[tank_idx] = max_tanks_health
-
-#     return (heal_qty, overhealing)
-
-# def smash_tank(tanks_health, tank_idx, dmg):
-#     if random.random() < PATCHWERK_MISS_CHANCE:
-#         # print("Hateful Strike MISSES tank #{}".format(tank_idx))
-#         return False
-#     # print("Hateful Strike hits tank #{} ({} hp) for {} dmg".format(tank_idx, tanks_health[tank_idx], dmg))
-#     tanks_health[tank_idx] -= dmg
-#     if tanks_health[tank_idx] <= 0:
-#         # print("Tank #{} has DIED! ({} Overkill)".format(tank_idx, -tanks_health[tank_idx]))
-#         return True
-#     return False
 
 def run_simulation(tanks_list):
     # each time we run a simulation, we should reset the state of each tank
@@ -177,8 +153,6 @@ def run_simulation(tanks_list):
     total_raw_healing = 0
     total_overhealing = 0
 
-    tanks_max_health = [BEARTANK_MAX_HEALTH, OFFTANK_MAX_HEALTH, OFFTANK_MAX_HEALTH]
-    tanks_health = tanks_max_health.copy()
     elapsed = 0
     heapq.heapify(event_heap)
     while elapsed < FIGHT_LENGTH:
@@ -186,10 +160,8 @@ def run_simulation(tanks_list):
         # print("{} {}".format(tanks_health, next_event))
         if next_event.is_hateful():
             tank, target_idx = get_hateful_target(tanks_list)
-            death = tank.get_smashed(get_hateful_strike_damage())
+            death = tank.get_smashed()
 
-            # target_idx = get_hateful_target(tanks_health)
-        #     death = smash_tank(tanks_health, target_idx, get_hateful_strike_damage())
             if death:
                 break
             delay = get_timetonext_hateful()
@@ -199,7 +171,6 @@ def run_simulation(tanks_list):
             target_idx = get_heal_target(healer_idx)
             heal_amount, _, cast_time = get_heal('h4')
             raw_healing, overhealing = tanks_list[target_idx].get_healed(heal_amount)
-            # raw_healing, overhealing = heal_tank(tanks_health, target_idx, heal_amount, tanks_max_health[target_idx])
             total_raw_healing += raw_healing
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
@@ -223,9 +194,9 @@ if __name__ == "__main__":
     overhealing_list = []
     
     tanks = [
-        Tank(name='Bearly', max_health=14000, dodge_parry=0.21, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=11000, dodge_parry=0.3, mitigation=0.7),
-        Tank(name='CTS', max_health=11000, dodge_parry=0.3, mitigation=0.7),
+        Tank(name='Bearly', max_health=13000, dodge_parry=0.25, mitigation=0.75),
+        Tank(name='Zug Zug', max_health=9500, dodge_parry=0.35, mitigation=0.725),
+        Tank(name='CTS', max_health=9500, dodge_parry=0.35, mitigation=0.725),
     ]
 
     for _ in range(number_simulations):
@@ -233,6 +204,6 @@ if __name__ == "__main__":
         overhealing_list.append(overhealing_percent)
         if survived:
             number_survived += 1
-
-    print('Number of times tank survived: {} ({}%)'.format(number_survived, number_survived / number_simulations * 100))
-    # print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
+    
+    print('\nNumber of times tank survived: {} ({}%)'.format(number_survived, number_survived / number_simulations * 100))
+    print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
