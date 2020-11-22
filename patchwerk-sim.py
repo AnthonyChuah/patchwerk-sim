@@ -155,8 +155,11 @@ def run_simulation(tanks_list):
 
     elapsed = 0
     heapq.heapify(event_heap)
-    while elapsed < FIGHT_LENGTH:
+    while True:
         next_event = heapq.heappop(event_heap)
+        elapsed = next_event._time
+        if elapsed >= FIGHT_LENGTH:
+            break
         # print("{} {}".format(tanks_health, next_event))
         if next_event.is_hateful():
             tank, target_idx = get_hateful_target(tanks_list)
@@ -175,7 +178,6 @@ def run_simulation(tanks_list):
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
             heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
-        elapsed = next_event._time # increment timer
 
     overhealing_percent = total_overhealing / total_raw_healing
     if elapsed >= FIGHT_LENGTH:
