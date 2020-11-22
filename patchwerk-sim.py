@@ -84,14 +84,14 @@ class Tank:
     def get_smashed(self):
         # check for misses
         if random.random() < self.dodge_parry:
-            print("Hateful Strike MISSES {}".format(self.name))
+            # print("Hateful Strike MISSES {}".format(self.name))
             return False
 
         dmg = self.get_damage()
-        print("Hateful Strike hits {} ({} hp) for {} dmg".format(self.name, self.current_health, dmg))
+        # print("Hateful Strike hits {} ({} hp) for {} dmg".format(self.name, self.current_health, dmg))
         self.current_health -= dmg
         if self.current_health <= 0:
-            print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
+            # print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
             return True
         return False
 
@@ -102,7 +102,7 @@ class Tank:
 
     # returns a tuple with total raw healing and overhealing
     def get_healed(self, heal_qty):
-        print("{} ({} hp) is healed for {}".format(self.name, self.current_health, heal_qty))
+        # print("{} ({} hp) is healed for {}".format(self.name, self.current_health, heal_qty))
         self.current_health += heal_qty
         overhealing = 0
         if self.current_health > self.max_health:
