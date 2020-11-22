@@ -223,7 +223,7 @@ if __name__ == "__main__":
     overhealing_list = []
     
     tanks = [
-        Tank(name='Bearly', max_health=13000, dodge_parry=0.2, mitigation=0.75),
+        Tank(name='Bearly', max_health=14000, dodge_parry=0.21, mitigation=0.75),
         Tank(name='Zug Zug', max_health=11000, dodge_parry=0.3, mitigation=0.7),
         Tank(name='CTS', max_health=11000, dodge_parry=0.3, mitigation=0.7),
     ]
