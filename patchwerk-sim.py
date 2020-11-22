@@ -30,6 +30,7 @@ TOTAL_PLUS_HEAL = AVERAGE_PLUS_HEAL + (150 if AMPLIFY_MAGIC else 0) + (75 if MAG
 
 import argparse
 import heapq
+import statistics
 import random
 
 
@@ -86,12 +87,16 @@ def get_hateful_target(tanks_health):
 def get_heal_target(healer_idx):
     return (healer_idx + 2) // 3 - 1
 
+# returns a tuple with total raw healing and overhealing
 def heal_tank(tanks_health, tank_idx, heal_qty, max_tanks_health):
     # print("Tank #{} ({} hp) is healed for {}".format(tank_idx, tanks_health[tank_idx], heal_qty))
     tanks_health[tank_idx] += heal_qty
+    overhealing = 0
     if tanks_health[tank_idx] > max_tanks_health:
-        # print("Overhealed {}".format(tanks_health[tank_idx] - max_tanks_health))
+        overhealing = tanks_health[tank_idx] - max_tanks_health
         tanks_health[tank_idx] = max_tanks_health
+
+    return (heal_qty, overhealing)
 
 def smash_tank(tanks_health, tank_idx, dmg):
     if random.random() < PATCHWERK_MISS_CHANCE:
@@ -115,6 +120,10 @@ def run_simulation():
         # print("Healer #{} randomly scheduled to land first heal at {} seconds".format(ii, start))
         heapq.heappush(event_heap, Event(ii, start))
 
+    # for analysis
+    total_raw_healing = 0
+    total_overhealing = 0
+
     tanks_max_health = [BEARTANK_MAX_HEALTH, OFFTANK_MAX_HEALTH, OFFTANK_MAX_HEALTH]
     tanks_health = tanks_max_health.copy()
     elapsed = 0
@@ -133,16 +142,20 @@ def run_simulation():
             healer_idx = next_event._entity
             target_idx = get_heal_target(healer_idx)
             heal_amount, _, cast_time = get_heal('h4')
-            heal_tank(tanks_health, target_idx, heal_amount, tanks_max_health[target_idx])
+            raw_healing, overhealing = heal_tank(tanks_health, target_idx, heal_amount, tanks_max_health[target_idx])
+            total_raw_healing += raw_healing
+            total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
             heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
         elapsed = next_event._time # increment timer
+
+    overhealing_percent = total_overhealing / total_raw_healing
     if elapsed >= FIGHT_LENGTH:
         # print("Congrats! Patchwerk is dead")
-        return True
+        return (True, overhealing_percent)
     else:
         # print("TANK DIES; WHY NO HEALS NOOBS")
-        return False
+        return (False, overhealing_percent)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -150,8 +163,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     number_simulations = int(args.sims)
     number_survived = 0
+    overhealing_list = []
     for _ in range(number_simulations):
-        if run_simulation():
+        survived, overhealing_percent = run_simulation()
+        overhealing_list.append(overhealing_percent)
+        if survived:
             number_survived += 1
 
     print('Number of times tank survived: {} ({}%)'.format(number_survived, number_survived / number_simulations * 100))
+    print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
