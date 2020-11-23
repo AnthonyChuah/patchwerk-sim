@@ -30,7 +30,7 @@ import argparse
 import heapq
 import statistics
 import random
-
+import numpy
 
 # tuple is average base healing and unmodified healing cost and cast time
 healing_spell_data = {
@@ -78,20 +78,21 @@ class Tank:
     def reset(self):
         self.current_health = self.max_health
 
+    # returns a tuple (does_tank_die, damage_taken)
     # returns True if tank dies, False otherwise
     def get_smashed(self):
         # check for misses
         if random.random() < self.dodge_parry:
             # print("Hateful Strike MISSES {}".format(self.name))
-            return False
+            return (False, 0)
 
         dmg = self.get_damage()
         # print("Hateful Strike hits {} ({} hp) for {} dmg".format(self.name, self.current_health, dmg))
         self.current_health -= dmg
         if self.current_health <= 0:
             # print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
-            return True
-        return False
+            return (True, dmg)
+        return (False, dmg)
 
     def get_damage(self):
         damage = random.random() * (29000 - 22000) + 22000
@@ -137,6 +138,9 @@ def run_simulation(tanks_list):
     for tank in tanks_list:
         tank.reset()
 
+    # tracks the total damage taken by each tank
+    damage_taken = [0, 0, 0]
+
     PATCHWERK = 0
     event_heap = []
     heapq.heappush(event_heap, Event(PATCHWERK, 0))
@@ -153,12 +157,16 @@ def run_simulation(tanks_list):
 
     elapsed = 0
     heapq.heapify(event_heap)
-    while elapsed < FIGHT_LENGTH:
+    while True:
         next_event = heapq.heappop(event_heap)
+        elapsed = next_event._time
+        if elapsed >= FIGHT_LENGTH:
+            break
         # print("{} {}".format(tanks_health, next_event))
         if next_event.is_hateful():
             tank, target_idx = get_hateful_target(tanks_list)
-            death = tank.get_smashed()
+            death, dmg = tank.get_smashed()
+            damage_taken[target_idx] += dmg
 
             if death:
                 break
@@ -173,15 +181,16 @@ def run_simulation(tanks_list):
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
             heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
-        elapsed = next_event._time # increment timer
 
     overhealing_percent = total_overhealing / total_raw_healing
+    total_damage_taken = sum(damage_taken)
+    damage_taken_percentage = [dmg / total_damage_taken for dmg in damage_taken]
     if elapsed >= FIGHT_LENGTH:
         # print("Congrats! Patchwerk is dead")
-        return (True, overhealing_percent)
+        return (True, overhealing_percent, damage_taken_percentage)
     else:
         # print("TANK DIES; WHY NO HEALS NOOBS")
-        return (False, overhealing_percent)
+        return (False, overhealing_percent, damage_taken_percentage)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -190,6 +199,7 @@ if __name__ == "__main__":
     number_simulations = int(args.sims)
     number_survived = 0
     overhealing_list = []
+    damage_taken_percentages_list = []
     
     tanks = [
         Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
@@ -198,11 +208,17 @@ if __name__ == "__main__":
     ]
 
     for _ in range(number_simulations):
-        survived, overhealing_percent = run_simulation(tanks)
+        survived, overhealing_percent, damage_taken_percentage = run_simulation(tanks)
         overhealing_list.append(overhealing_percent)
+        damage_taken_percentages_list.append(damage_taken_percentage)
         if survived:
             number_survived += 1
+
     
     print('\nNumber of times tank survived: {} ({}%)'.format(number_survived, number_survived / number_simulations * 100))
     print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
-    print(get_heal('h4'))
+    damage_break_down = numpy.median(damage_taken_percentages_list, axis=0)
+
+    print('DAMAGE BREAKDOWN')
+    for tank, percent_damage_taken in zip(tanks, damage_break_down):
+        print('{}: {:.1f}%'.format(tank, percent_damage_taken * 100))
