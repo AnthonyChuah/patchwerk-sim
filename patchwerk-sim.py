@@ -6,8 +6,6 @@
 # patchwerk will enrage during the last 5%, but we ignore that since tanks will save shield wall
 # does not take into account batching
 
-import sys
-
 FIGHT_LENGTH = 60 * 4
 AVERAGE_MITIGATION = 0.7
 PATCHWERK_MISS_CHANCE = 0.3
@@ -194,9 +192,9 @@ if __name__ == "__main__":
     overhealing_list = []
     
     tanks = [
-        Tank(name='Bearly', max_health=13000, dodge_parry=0.25, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=9500, dodge_parry=0.35, mitigation=0.725),
-        Tank(name='CTS', max_health=9500, dodge_parry=0.35, mitigation=0.725),
+        Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
+        Tank(name='Zug Zug', max_health=9500, dodge_parry=0.35, mitigation=0.7),
+        Tank(name='CTS', max_health=9500, dodge_parry=0.35, mitigation=0.7),
     ]
 
     for _ in range(number_simulations):
@@ -207,3 +205,4 @@ if __name__ == "__main__":
     
     print('\nNumber of times tank survived: {} ({}%)'.format(number_survived, number_survived / number_simulations * 100))
     print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
+    print(get_heal('h4'))
