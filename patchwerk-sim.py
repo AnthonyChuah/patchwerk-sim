@@ -140,6 +140,7 @@ def run_simulation(tanks_list):
 
     # tracks the total damage taken by each tank
     damage_taken = [0, 0, 0]
+    amount_of_hateful_strikes = [0, 0, 0]
 
     PATCHWERK = 0
     event_heap = []
@@ -167,6 +168,7 @@ def run_simulation(tanks_list):
             tank, target_idx = get_hateful_target(tanks_list)
             death, dmg = tank.get_smashed()
             damage_taken[target_idx] += dmg
+            amount_of_hateful_strikes[target_idx] += 1
 
             if death:
                 break
@@ -184,13 +186,17 @@ def run_simulation(tanks_list):
 
     overhealing_percent = total_overhealing / total_raw_healing
     total_damage_taken = sum(damage_taken)
+    total_hateful_strikes_taken = sum(amount_of_hateful_strikes)
+
     damage_taken_percentage = [dmg / total_damage_taken for dmg in damage_taken]
+    hateful_strikes_taken_percentage = [num_hateful_strike / total_hateful_strikes_taken \
+        for num_hateful_strike in amount_of_hateful_strikes]
     if elapsed >= FIGHT_LENGTH:
         # print("Congrats! Patchwerk is dead")
-        return (True, overhealing_percent, damage_taken_percentage)
+        return (True, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
     else:
         # print("TANK DIES; WHY NO HEALS NOOBS")
-        return (False, overhealing_percent, damage_taken_percentage)
+        return (False, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -200,15 +206,16 @@ if __name__ == "__main__":
     number_survived = 0
     overhealing_list = []
     damage_taken_percentages_list = []
+    hateful_strikes_taken_percentages_list = []
     
     tanks = [
         Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=9500, dodge_parry=0.35, mitigation=0.7),
-        Tank(name='CTS', max_health=9500, dodge_parry=0.35, mitigation=0.7),
+        Tank(name='Zug Zug', max_health=9500, dodge_parry=0.35, mitigation=0.725),
+        Tank(name='CTS', max_health=9500, dodge_parry=0.35, mitigation=0.725),
     ]
 
     for _ in range(number_simulations):
-        survived, overhealing_percent, damage_taken_percentage = run_simulation(tanks)
+        survived, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentages_list = run_simulation(tanks)
         overhealing_list.append(overhealing_percent)
         damage_taken_percentages_list.append(damage_taken_percentage)
         if survived:
@@ -219,6 +226,11 @@ if __name__ == "__main__":
     print('Overhealing percent: {:.2f}%'.format(statistics.median(overhealing_list) * 100))
     damage_break_down = numpy.median(damage_taken_percentages_list, axis=0)
 
-    print('DAMAGE BREAKDOWN')
+    print('\nDAMAGE BREAKDOWN')
     for tank, percent_damage_taken in zip(tanks, damage_break_down):
         print('{}: {:.1f}%'.format(tank, percent_damage_taken * 100))
+
+    print('\nNUMBER HATEFUL STRIKES BREAKDOWN')
+    for tank, percent_hateful_strike_taken in zip(tanks, hateful_strikes_taken_percentages_list):
+        print('{}: {:.1f}%'.format(tank, percent_hateful_strike_taken * 100))
+
