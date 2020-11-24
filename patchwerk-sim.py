@@ -54,19 +54,23 @@ class Event:
         return "[Time {}] {}".format(time, name)
 
 class Tank:
-    def __init__(self, name, max_health=11000, dodge_parry=0.3, mitigation=0.7):
+    def __init__(self, name, max_health=11000, dodge_parry=0.3, mitigation=0.7, use_health_stone_when_critical=False):
         self.name = name
         self.max_health = max_health
         self.dodge_parry = dodge_parry
         self.mitigation = mitigation
-        self.current_health = self.max_health
+        self.use_health_stone_when_critical = use_health_stone_when_critical
+        self.reset()
 
     def reset(self):
         self.current_health = self.max_health
+        # tracks when we last used healthstone to determine if on CD
+        self._last_used_healthstone = -999
 
+    # takes a tick argument, which is the time when tank takes damage
     # returns a tuple (does_tank_die, damage_taken)
     # returns True if tank dies, False otherwise
-    def get_smashed(self):
+    def get_smashed(self, tick):
         # check for misses
         if random.random() < self.dodge_parry:
             # print("Hateful Strike MISSES {}".format(self.name))
@@ -78,6 +82,13 @@ class Tank:
         if self.current_health <= 0:
             # print("{} has DIED! ({} Overkill)".format(self.name, -self.current_health))
             return (True, dmg)
+
+        # if self.use_health_stone_when_critical and \
+        #         self.current_health / self.max_health <= 0.2 and tick - self._last_used_healthstone >= 120:
+        #     self.get_healed(1440) 
+        #     self._last_used_healthstone = tick
+            # print('{} used healthstone at {}s'.format(self.name, tick))
+
         return (False, dmg)
 
     def get_damage(self):
@@ -165,7 +176,7 @@ def run_simulation(tanks_list, healers_dict):
         # print("Patchwerk first Hateful Strike scheduled to land at 0 seconds")
         for healer in healers_dict.values():
             start = round(random.random() * healer.cast_time, 1)
-            f.write("{} randomly scheduled to land first heal at {} seconds\n".format(healer.name, start))
+            # f.write("{} randomly scheduled to land first heal at {} seconds\n".format(healer.name, start))
             heapq.heappush(event_heap, Event(healer.entity, start))
 
         # for analysis
@@ -183,13 +194,15 @@ def run_simulation(tanks_list, healers_dict):
             f.write("{}\n".format(next_event))
             if next_event.is_hateful():
                 tank, target_idx = get_hateful_target(tanks_list)
-                f.write('SELECTING HATEFUL STRIKE TARGET\n')
-                f.write('{}\n'.format([str(tank) for tank in tanks_list]))
-                death, dmg = tank.get_smashed()
+                # f.write('SELECTING HATEFUL STRIKE TARGET\n')
+                # f.write('{}\n'.format([str(tank) for tank in tanks_list]))
+                death, dmg = tank.get_smashed(elapsed)
                 damage_taken[target_idx] += dmg
                 if dmg == 0:
+                    pass
                     f.write('Patchwerk attacks {} at {}s and misses'.format(tank.name, elapsed))
                 else:
+                    pass
                     f.write("Patchwerk hits {} at {}s for {}\n".format(tank.name, \
                         elapsed, math.ceil(dmg)))
                 amount_of_hateful_strikes[target_idx] += 1
@@ -201,7 +214,8 @@ def run_simulation(tanks_list, healers_dict):
             else:
                 # note that healer entities are 1-indexed while lists are 0-indexed
                 healer_idx = next_event._entity
-                heal_amount, cast_time, assigned_tank_id = healers_dict[healer_idx].get_heal()
+                healer = healers_dict[healer_idx]
+                heal_amount, cast_time, assigned_tank_id = healer.get_heal()
                 raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount)
                 f.write("{} heals {} at {}s for {} ({} overheal)\n".format(healer.name, tanks_list[assigned_tank_id].name, \
                     elapsed, math.ceil(heal_amount - overhealing), math.floor(overhealing)))
