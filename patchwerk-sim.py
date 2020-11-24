@@ -103,6 +103,7 @@ healing_spell_data = {
     'h2': (476, 205, 2.5),
     'h3': (624, 255, 2.5),
     'h4': (779.5, 305, 2.5),
+    'gh1': (981.5, 370, 2.5),
 }
 
 
@@ -231,17 +232,37 @@ if __name__ == "__main__":
     
     tanks = [
         Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.725),
-        Tank(name='CTS', max_health=9499, dodge_parry=0.35, mitigation=0.725),
+        Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.7),
+        Tank(name='CTS', max_health=9499, dodge_parry=0.35, mitigation=0.7),
     ]
 
     # creates healers
     # we use a dict as healer entities start with 1 rather than 0
     # minimises confusions
     healers = {}
-    for healer_idx in range(1, 10):
-        assigned_tank_id = (healer_idx + 2) // 3 - 1
-        healers[healer_idx] = Healer(entity=healer_idx, main_heal_used='h4', assigned_tank_id=assigned_tank_id)
+
+    # # 12 healer set up
+    # for healer_idx in range(1, 10):
+    #     assigned_tank_id = (healer_idx + 2) // 3 - 1
+    #     # test having different heals for different healers
+    #     # main_heal = 'h3'if healer_idx > 3 else 'gh1'
+    #     main_heal = 'h4'
+    #     healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
+
+    # 13 healer set up
+    for healer_idx in range(1, 11):
+        if healer_idx <= 4:
+            assigned_tank_id = 0
+        elif healer_idx <= 7:
+            assigned_tank_id = 1
+        else:
+            assigned_tank_id = 2
+        # test having different heals for different healers
+        main_heal = 'h2'if healer_idx > 4 else 'h4'
+        # main_heal = 'h3'
+        healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
+
+    print(healers[5].get_heal())
 
     for _ in range(number_simulations):
         survived, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentages_list = run_simulation(tanks, healers)
