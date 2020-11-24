@@ -9,7 +9,7 @@
 FIGHT_LENGTH = 60 * 4
 AVERAGE_MITIGATION = 0.7
 PATCHWERK_MISS_CHANCE = 0.3
-AVERAGE_PLUS_HEAL = 1000
+AVERAGE_PLUS_HEAL = 1060
 AMPLIFY_MAGIC = True
 MAGIC_ATTUNEMENT = True
 
@@ -26,6 +26,7 @@ HEALER_CRIT_CHANCE = 0.2
 TOTAL_PLUS_HEAL = AVERAGE_PLUS_HEAL + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + \
     (350 * 0.25 * POINTS_IN_SPIRITUAL_GUIDANCE / 5)
 
+import math
 import argparse
 import heapq
 import statistics
@@ -96,7 +97,7 @@ class Tank:
         return (heal_qty, overhealing)
 
     def __str__(self):
-        return self.name
+        return '{} ({} / {})'.format(self.name, self.current_health, self.max_health)
 
 # tuple is average base healing and unmodified healing cost and cast time
 healing_spell_data = {
@@ -105,7 +106,6 @@ healing_spell_data = {
     'h4': (779.5, 305, 2.5),
     'gh1': (981.5, 370, 2.5),
 }
-
 
 class Healer:
     def __init__(self, entity, main_heal_used, assigned_tank_id):
@@ -161,64 +161,71 @@ def run_simulation(tanks_list, healers_dict):
     PATCHWERK = 0
     event_heap = []
     heapq.heappush(event_heap, Event(PATCHWERK, 0))
-    # print("Patchwerk first Hateful Strike scheduled to land at 0 seconds")
-    for healer in healers_dict.values():
-        # _, _, cast_time = get_heal('h4')
-        start = round(random.random() * healer.cast_time, 1)
-        # print("{} randomly scheduled to land first heal at {} seconds".format(healer.name, start))
-        heapq.heappush(event_heap, Event(healer.entity, start))
+    with open('logs.txt', 'a') as f:
+        # print("Patchwerk first Hateful Strike scheduled to land at 0 seconds")
+        for healer in healers_dict.values():
+            start = round(random.random() * healer.cast_time, 1)
+            f.write("{} randomly scheduled to land first heal at {} seconds\n".format(healer.name, start))
+            heapq.heappush(event_heap, Event(healer.entity, start))
 
-    # for analysis
-    total_raw_healing = 0
-    total_overhealing = 0
+        # for analysis
+        total_raw_healing = 0
+        total_overhealing = 0
 
-    elapsed = 0
-    heapq.heapify(event_heap)
-    while True:
-        next_event = heapq.heappop(event_heap)
-        elapsed = next_event._time
-        if elapsed >= FIGHT_LENGTH:
-            break
-        # print("{} {}".format(tanks_health, next_event))
-        # print(next_event)
-        if next_event.is_hateful():
-            tank, target_idx = get_hateful_target(tanks_list)
-            death, dmg = tank.get_smashed()
-            damage_taken[target_idx] += dmg
-            amount_of_hateful_strikes[target_idx] += 1
-
-            if death:
+        elapsed = 0
+        heapq.heapify(event_heap)
+        while True:
+            next_event = heapq.heappop(event_heap)
+            elapsed = next_event._time
+            if elapsed >= FIGHT_LENGTH:
                 break
-            delay = get_timetonext_hateful()
-            heapq.heappush(event_heap, Event(PATCHWERK, round(elapsed + delay, 1)))
+
+            f.write("{}\n".format(next_event))
+            if next_event.is_hateful():
+                tank, target_idx = get_hateful_target(tanks_list)
+                f.write('SELECTING HATEFUL STRIKE TARGET\n')
+                f.write('{}\n'.format([str(tank) for tank in tanks_list]))
+                death, dmg = tank.get_smashed()
+                damage_taken[target_idx] += dmg
+                if dmg == 0:
+                    f.write('Patchwerk attacks {} at {}s and misses'.format(tank.name, elapsed))
+                else:
+                    f.write("Patchwerk hits {} at {}s for {}\n".format(tank.name, \
+                        elapsed, math.ceil(dmg)))
+                amount_of_hateful_strikes[target_idx] += 1
+
+                if death:
+                    break
+                delay = get_timetonext_hateful()
+                heapq.heappush(event_heap, Event(PATCHWERK, round(elapsed + delay, 1)))
+            else:
+                # note that healer entities are 1-indexed while lists are 0-indexed
+                healer_idx = next_event._entity
+                heal_amount, cast_time, assigned_tank_id = healers_dict[healer_idx].get_heal()
+                raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount)
+                f.write("{} heals {} at {}s for {} ({} overheal)\n".format(healer.name, tanks_list[assigned_tank_id].name, \
+                    elapsed, math.ceil(heal_amount - overhealing), math.floor(overhealing)))
+
+                total_raw_healing += raw_healing
+                total_overhealing += overhealing
+                human_delay = round(REACTION_TIME * random.random(), 1)
+                heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
+
+        overhealing_percent = total_overhealing / total_raw_healing
+        total_damage_taken = sum(damage_taken)
+        total_hateful_strikes_taken = sum(amount_of_hateful_strikes)
+
+        damage_taken_percentage = [dmg / total_damage_taken for dmg in damage_taken]
+        hateful_strikes_taken_percentage = [num_hateful_strike / total_hateful_strikes_taken \
+            for num_hateful_strike in amount_of_hateful_strikes]
+        if elapsed >= FIGHT_LENGTH:
+            f.write("Congrats! Patchwerk is dead\n")
+            return (True, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
         else:
-            # note that healer entities are 1-indexed while lists are 0-indexed
-            healer_idx = next_event._entity
-            heal_amount, cast_time, assigned_tank_id = healers_dict[healer_idx].get_heal()
-            # print(healer_idx, elapsed, heal_amount, assigned_tank_id)
+            f.write("TANK DIES; WHY NO HEALS NOOBS\n")
+            return (False, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
 
-            # target_idx = get_heal_target(healer_idx)
-            # heal_amount, _, cast_time = get_heal('h4')
-            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount)
-
-            total_raw_healing += raw_healing
-            total_overhealing += overhealing
-            human_delay = round(REACTION_TIME * random.random(), 1)
-            heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
-
-    overhealing_percent = total_overhealing / total_raw_healing
-    total_damage_taken = sum(damage_taken)
-    total_hateful_strikes_taken = sum(amount_of_hateful_strikes)
-
-    damage_taken_percentage = [dmg / total_damage_taken for dmg in damage_taken]
-    hateful_strikes_taken_percentage = [num_hateful_strike / total_hateful_strikes_taken \
-        for num_hateful_strike in amount_of_hateful_strikes]
-    if elapsed >= FIGHT_LENGTH:
-        # print("Congrats! Patchwerk is dead")
-        return (True, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
-    else:
-        # print("TANK DIES; WHY NO HEALS NOOBS")
-        return (False, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
+        f.write('\n\n\n')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -262,7 +269,6 @@ if __name__ == "__main__":
         # main_heal = 'h3'
         healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
 
-    print(healers[5].get_heal())
 
     for _ in range(number_simulations):
         survived, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentages_list = run_simulation(tanks, healers)
