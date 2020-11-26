@@ -20,7 +20,7 @@ POINTS_IN_SPIRITUAL_GUIDANCE = 5
 
 # assume there is some sort of variance between casts
 REACTION_TIME = 0.2
-HEALER_CRIT_CHANCE = 0.13
+HEALER_CRIT_CHANCE = 0.2
 
 # assume rough spirit score of 350
 TOTAL_PLUS_HEAL = AVERAGE_PLUS_HEAL + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + \
@@ -191,20 +191,20 @@ def run_simulation(tanks_list, healers_dict):
             if elapsed >= FIGHT_LENGTH:
                 break
 
-            # f.write("{}\n".format(next_event))
+            f.write("{}\n".format(next_event))
             if next_event.is_hateful():
                 tank, target_idx = get_hateful_target(tanks_list)
-                # f.write('SELECTING HATEFUL STRIKE TARGET\n')
-                # f.write('{}\n'.format([str(tank) for tank in tanks_list]))
+                f.write('SELECTING HATEFUL STRIKE TARGET\n')
+                f.write('{}\n'.format([str(tank) for tank in tanks_list]))
                 death, dmg = tank.get_smashed(elapsed)
                 damage_taken[target_idx] += dmg
                 if dmg == 0:
                     pass
-                    # f.write('Patchwerk attacks {} at {}s and misses'.format(tank.name, elapsed))
+                    f.write('Patchwerk attacks {} at {}s and misses'.format(tank.name, elapsed))
                 else:
                     pass
-                    # f.write("Patchwerk hits {} at {}s for {}\n".format(tank.name, \
-                        # elapsed, math.ceil(dmg)))
+                    f.write("Patchwerk hits {} at {}s for {}\n".format(tank.name, \
+                        elapsed, math.ceil(dmg)))
                 amount_of_hateful_strikes[target_idx] += 1
 
                 if death:
@@ -217,8 +217,8 @@ def run_simulation(tanks_list, healers_dict):
                 healer = healers_dict[healer_idx]
                 heal_amount, cast_time, assigned_tank_id = healer.get_heal()
                 raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount)
-                # f.write("{} heals {} at {}s for {} ({} overheal)\n".format(healer.name, tanks_list[assigned_tank_id].name, \
-                #     elapsed, math.ceil(heal_amount - overhealing), math.floor(overhealing)))
+                f.write("{} heals {} at {}s for {} ({} overheal)\n".format(healer.name, tanks_list[assigned_tank_id].name, \
+                    elapsed, math.ceil(heal_amount - overhealing), math.floor(overhealing)))
 
                 total_raw_healing += raw_healing
                 total_overhealing += overhealing
@@ -233,13 +233,13 @@ def run_simulation(tanks_list, healers_dict):
         hateful_strikes_taken_percentage = [num_hateful_strike / total_hateful_strikes_taken \
             for num_hateful_strike in amount_of_hateful_strikes]
         if elapsed >= FIGHT_LENGTH:
-            # f.write("Congrats! Patchwerk is dead\n")
+            f.write("Congrats! Patchwerk is dead\n")
             return (True, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
         else:
-            # f.write("TANK DIES; WHY NO HEALS NOOBS\n")
+            f.write("TANK DIES; WHY NO HEALS NOOBS\n")
             return (False, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
 
-        # f.write('\n\n\n')
+        f.write('\n\n\n')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -252,9 +252,9 @@ if __name__ == "__main__":
     hateful_strikes_taken_percentages_list = []
     
     tanks = [
-        Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.7),
-        Tank(name='CTS', max_health=9499, dodge_parry=0.35, mitigation=0.7),
+        Tank(name='Bearly', max_health=14000, dodge_parry=0.25, mitigation=0.75),
+        # Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.72),
+        Tank(name='Cowchoppa', max_health=11000, dodge_parry=0.35, mitigation=0.72),
     ]
 
     # creates healers
@@ -272,16 +272,16 @@ if __name__ == "__main__":
 
     # 13 healer set up
     for healer_idx in range(1, 11):
-        if healer_idx <= 4:
+        if healer_idx <= 5:
             assigned_tank_id = 0
-        elif healer_idx <= 7:
-            assigned_tank_id = 1
         else:
-            assigned_tank_id = 2
+            assigned_tank_id = 1
+
         # test having different heals for different healers
-        main_heal = 'h2'if healer_idx > 4 else 'h4'
+        main_heal = 'h3'
         # main_heal = 'h3'
         healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
+
 
     for _ in range(number_simulations):
         survived, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentages_list = run_simulation(tanks, healers)
