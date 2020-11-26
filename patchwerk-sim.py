@@ -253,8 +253,8 @@ if __name__ == "__main__":
     
     tanks = [
         Tank(name='Bearly', max_health=11000, dodge_parry=0.25, mitigation=0.75),
-        Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.7),
-        Tank(name='CTS', max_health=9499, dodge_parry=0.35, mitigation=0.7),
+        Tank(name='Zug Zug', max_health=9498, dodge_parry=0.35, mitigation=0.725),
+        Tank(name='CTS', max_health=9499, dodge_parry=0.35, mitigation=0.725),
     ]
 
     # creates healers
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     for healer_idx in range(1, 11):
         if healer_idx <= 4:
             assigned_tank_id = 0
-        elif healer_idx <= 8:
+        elif healer_idx <= 7:
             assigned_tank_id = 1
         else:
             assigned_tank_id = 2
