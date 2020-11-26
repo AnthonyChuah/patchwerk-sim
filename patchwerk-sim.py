@@ -20,7 +20,7 @@ POINTS_IN_SPIRITUAL_GUIDANCE = 5
 
 # assume there is some sort of variance between casts
 REACTION_TIME = 0.2
-HEALER_CRIT_CHANCE = 0.2
+HEALER_CRIT_CHANCE = 0.13
 
 # assume rough spirit score of 350
 TOTAL_PLUS_HEAL = AVERAGE_PLUS_HEAL + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + \
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     for healer_idx in range(1, 11):
         if healer_idx <= 4:
             assigned_tank_id = 0
-        elif healer_idx <= 7:
+        elif healer_idx <= 8:
             assigned_tank_id = 1
         else:
             assigned_tank_id = 2
