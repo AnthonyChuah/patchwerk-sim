@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # original simulation written by https://github.com/tangbj and refactored by https://github.com/AnthonyChuah
 # the multiple-OT and highest-hp target selection logic
 
