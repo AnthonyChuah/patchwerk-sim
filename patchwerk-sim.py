@@ -32,7 +32,7 @@ from patchwerk_healers import heals_config
 
 # creates logs folder if it doesn't exist
 
-os.makedirs('logs')
+os.makedirs('logs', exist_ok=True)
 
 _filepath = 'logs/simulation_{:%Y%m%d-%H%M%S.%f}.log'.format(datetime.datetime.now())
 _logformat = '%(levelname)s | %(message)s | %(filename)s:%(lineno)s %(funcName)s()'
