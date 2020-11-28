@@ -1,3 +1,5 @@
+# NOTE: for priests, add the additional healing from spirtual guidance directly to plus heal
+
 # healer_id : [heal_used, tank_id, +heal, class]
 # priest: h4, shaman: h2, druid: ?
 # in reality we may be running 10 healers, with 1 druid "floating"
@@ -9,19 +11,20 @@
 # INFO | Doodoobear (7665.200000000001 / 11000): 46.5% | patchwerk-sim.py:281 <module>()
 # INFO | Cowchoppar (9900 / 9900): 37.0% | patchwerk-sim.py:281 <module>()
 # INFO | LubbyLubba (9500 / 9500): 16.5% | patchwerk-sim.py:281 <module>()
-"""
+
 heals_config = [
-    ['h4', 0, 1000, 'priest'],
-    ['h2', 0, 1000, 'shaman'],
-    ['h2', 0, 1000, 'shaman'],
-    ['h4', 1, 1000, 'priest'],
-    ['h2', 1, 1000, 'shaman'],
-    ['h2', 1, 1000, 'shaman'],
-    ['h4', 2, 1000, 'priest'],
-    ['h4', 2, 1000, 'priest'],
-    ['h2', 2, 1000, 'shaman'],
+    ['h4', 0, 1160, 'priest'],
+    ['h4', 0, 1160, 'priest'],
+    ['h4', 0, 1160, 'priest'],
+    ['ht4', 0, 1030, 'druid'],
+    ['h2', 1, 1160, 'priest'],
+    ['h2', 1, 1160, 'priest'],
+    ['ht4', 1, 1030, 'druid'],
+    ['h2', 2, 1160, 'priest'],
+    ['h2', 2, 1160, 'priest'],
+    ['h2', 2, 1160, 'priest'],
 ]
-"""
+
 
 # floating biased druid scenario: 10 healers, with 1 druid spot-healing either OT#2 or OT#3
 # Number of times tanks survived: 1000 (100.0%) | patchwerk-sim.py:271 <module>()
@@ -50,17 +53,17 @@ heals_config = [
 # INFO | Cowchoppar (9900 / 9900): 32.5% | patchwerk-sim.py:281 <module>()
 # INFO | LubbyLubba (9500 / 9500): 17.5% | patchwerk-sim.py:281 <module>()
 # """
-heals_config = [
-    ['h4', 0, 1167, 'priest'],
-    ['h2', 0, 1167, 'shaman'],
-    ['h2', 0, 1167, 'shaman'],
-    ['h4', 1, 1167, 'priest'],
-    ['h2', 1, 1167, 'shaman'],
-    ['h2', 1, 1167, 'shaman'],
-    ['h4', 2, 1167, 'priest'],
-    ['h4', 2, 1167, 'priest'],
-    ['h2', 2, 1167, 'shaman'],
-]
+# heals_config = [
+#     ['h4', 0, 1167, 'priest'],
+#     ['h2', 0, 1167, 'shaman'],
+#     ['h2', 0, 1167, 'shaman'],
+#     ['h4', 1, 1167, 'priest'],
+#     ['h2', 1, 1167, 'shaman'],
+#     ['h2', 1, 1167, 'shaman'],
+#     ['h4', 2, 1167, 'priest'],
+#     ['h4', 2, 1167, 'priest'],
+#     ['h2', 2, 1167, 'shaman'],
+# ]
 # """
 
 # fat bear scenario: 10 healers, with 4 healers on the fat bear
