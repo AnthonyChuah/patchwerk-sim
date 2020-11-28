@@ -95,8 +95,9 @@ class Tank:
         return round(damage)
 
     # returns a tuple with total raw healing and overhealing
-    def get_healed(self, heal_qty, tick, healer_name):
-        logging.debug("[{:>2f}s] {} ({} hp) is healed for {} by {}".format(tick, self.name, self.current_health, heal_qty, healer_name))
+    def get_healed(self, heal_qty, tick, healer_name, is_crit):
+        healing_verb = 'healed' if not is_crit else 'CRIT HEALED'
+        logging.debug("[{:2f}s] {} ({} hp) is {} for {} by {}".format(tick, self.name, self.current_health, healing_verb, heal_qty, healer_name))
         self.current_health += heal_qty
         overhealing = 0
         if self.current_health > self.max_health:
@@ -146,6 +147,8 @@ class Healer:
 
     def _get_heal_amount(self):
         base_healing, mana_cost, cast_time = self._spell_info
+        is_crit = False
+
         if self.healclass == 'druid':
             mana_cost *= 0.81
         # assume shamans and priests function similarly for now
@@ -160,13 +163,20 @@ class Healer:
         spell_coefficient = 3 / 3.5 if (self.healclass in ['priest', 'shaman'] or self.main_heal_used == 'ht4') \
             else 1
         total_healing = base_healing + spell_coefficient * total_plus_heal(self.plus_heal)
+
         if random.random() <= HEALER_CRIT_CHANCE:
+            is_crit = True
             total_healing *= 1.5
-        return total_healing, mana_cost, cast_time
+
+            # for druid, criting will active nature's grace and make next spell cast faster
+            if self.healclass == 'druid':
+                cast_time -= 0.5
+
+        return total_healing, mana_cost, cast_time, is_crit
 
     def get_heal(self):
-        heal_amount, _, cast_time = self._get_heal_amount()
-        return (heal_amount, cast_time, self.assigned_tank_id)
+        heal_amount, _, cast_time, is_crit = self._get_heal_amount()
+        return (heal_amount, cast_time, self.assigned_tank_id, is_crit)
 
     def __str__(self):
         return 'Healer #{}'.format(self.idx)
@@ -232,8 +242,8 @@ def run_simulation(tanks_list, healers):
             # note that healer entities are 1-indexed while lists are 0-indexed
             healer_idx = next_event._entity - 1
             healer = healers[healer_idx]
-            heal_amount, cast_time, assigned_tank_id = healer.get_heal()
-            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed, healer)
+            heal_amount, cast_time, assigned_tank_id, is_crit = healer.get_heal()
+            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed, healer, is_crit)
             total_raw_healing += raw_healing
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
