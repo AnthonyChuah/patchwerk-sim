@@ -1,3 +1,5 @@
+# NOTE: for priests, add the additional healing from spirtual guidance directly to plus heal
+
 # healer_id : [heal_used, tank_id, +heal, class]
 # priest: h4, shaman: h2, druid: ?
 # in reality we may be running 10 healers, with 1 druid "floating"
@@ -11,16 +13,16 @@
 # INFO | LubbyLubba (9500 / 9500): 16.5% | patchwerk-sim.py:281 <module>()
 
 heals_config = [
-    ['h4', 0, 1060, 'priest'],
-    ['h4', 0, 1060, 'shaman'],
-    ['h4', 0, 1060, 'shaman'],
-    ['h4', 0, 1060, 'shaman'],
-    ['h2', 1, 1000, 'priest'],
-    ['h2', 1, 1000, 'shaman'],
-    ['h2', 1, 1000, 'shaman'],
-    ['h2', 2, 1000, 'priest'],
-    ['h2', 2, 1000, 'priest'],
-    ['h2', 2, 1000, 'shaman'],
+    ['h4', 0, 1160, 'priest'],
+    ['h4', 0, 1160, 'priest'],
+    ['h4', 0, 1160, 'priest'],
+    ['ht4', 0, 1030, 'druid'],
+    ['h2', 1, 1160, 'priest'],
+    ['h2', 1, 1160, 'priest'],
+    ['ht4', 1, 1030, 'druid'],
+    ['h2', 2, 1160, 'priest'],
+    ['h2', 2, 1160, 'priest'],
+    ['h2', 2, 1160, 'priest'],
 ]
 
 

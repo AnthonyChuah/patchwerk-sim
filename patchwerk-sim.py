@@ -9,25 +9,12 @@
 # does not take into account batching
 
 FIGHT_LENGTH = 60 * 4
-AVERAGE_MITIGATION = 0.7
-PATCHWERK_MISS_CHANCE = 0.3
-AVERAGE_PLUS_HEAL = 1060
 AMPLIFY_MAGIC = True
 MAGIC_ATTUNEMENT = True
-
-# HOLY TALENTS
-POINTS_IN_IMPROVED_HEALING = 3
-POINTS_IN_SPIRITUAL_HEALING = 5
-POINTS_IN_SPIRITUAL_GUIDANCE = 5
 
 # assume there is some sort of variance between casts
 REACTION_TIME = 0.2
 HEALER_CRIT_CHANCE = 0.13
-
-# assume rough spirit score of 350
-def total_plus_heal(plus_heal, healclass):
-    # this is for priests, xxx add shaman/druid
-    return plus_heal + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + (350 * 0.25 * POINTS_IN_SPIRITUAL_GUIDANCE / 5)
 
 import argparse
 import datetime
@@ -108,8 +95,8 @@ class Tank:
         return round(damage)
 
     # returns a tuple with total raw healing and overhealing
-    def get_healed(self, heal_qty, tick):
-        logging.debug("[{:>5}s] {} ({} hp) is healed for {}".format(tick, self.name, self.current_health, heal_qty))
+    def get_healed(self, heal_qty, tick, healer_name):
+        logging.debug("[{:>2f}s] {} ({} hp) is healed for {} by {}".format(tick, self.name, self.current_health, heal_qty, healer_name))
         self.current_health += heal_qty
         overhealing = 0
         if self.current_health > self.max_health:
@@ -131,10 +118,10 @@ healing_spell_data = {
         'gh1': (981.5, 370, 2.5),
     },
     'druid': {
-        'h2': (476, 205, 2.5),
-        'h3': (624, 255, 2.5),
-        'h4': (779.5, 305, 2.5),
-        'gh1': (981.5, 370, 2.5),
+        'ht4': (417.5, 185, 2.35),
+        'ht5': (650.5, 270, 2.85),
+        'ht6': (838, 335, 2.85),
+        'ht7': (1050.5, 405, 2.85),
     },
     'shaman': {
         'h2': (476, 205, 2.5),
@@ -143,6 +130,9 @@ healing_spell_data = {
         'gh1': (981.5, 370, 2.5),
     }, 
 }
+
+def total_plus_heal(plus_heal):
+    return plus_heal + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0)
 
 class Healer:
     def __init__(self, idx, main_heal_used, assigned_tank_id, plus_heal, healclass):
@@ -156,10 +146,20 @@ class Healer:
 
     def _get_heal_amount(self):
         base_healing, mana_cost, cast_time = self._spell_info
-        mana_cost *= (1 - 0.05 * POINTS_IN_IMPROVED_HEALING)
-        # spirutal healing adds max of 10% to base heal
-        base_healing *= (1 + POINTS_IN_SPIRITUAL_HEALING / 5 * 0.1)
-        total_healing = base_healing + 3 / 3.5 * total_plus_heal(self.plus_heal, self.healclass)
+        if self.healclass == 'druid':
+            mana_cost *= 0.81
+        # assume shamans and priests function similarly for now
+        else:
+            mana_cost *= 0.85
+        
+        # 10% increase to base healing talent
+        if self.healclass in ['druid', 'priest']:
+            base_healing *= 1.1
+        
+        # NOTE: Druid's HT4 and priest/shammy spells are base 3s cast time, while Druid's higher rank HT are 3.5s base cast time
+        spell_coefficient = 3 / 3.5 if (self.healclass in ['priest', 'shaman'] or self.main_heal_used == 'ht4') \
+            else 1
+        total_healing = base_healing + spell_coefficient * total_plus_heal(self.plus_heal)
         if random.random() <= HEALER_CRIT_CHANCE:
             total_healing *= 1.5
         return total_healing, mana_cost, cast_time
@@ -167,6 +167,9 @@ class Healer:
     def get_heal(self):
         heal_amount, _, cast_time = self._get_heal_amount()
         return (heal_amount, cast_time, self.assigned_tank_id)
+
+    def __str__(self):
+        return 'Healer #{}'.format(self.idx)
 
 
 # updated hateful strike to hit every 1.2s instead of random number from 1.2 to 2s
@@ -230,7 +233,7 @@ def run_simulation(tanks_list, healers):
             healer_idx = next_event._entity - 1
             healer = healers[healer_idx]
             heal_amount, cast_time, assigned_tank_id = healer.get_heal()
-            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed)
+            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed, healer)
             total_raw_healing += raw_healing
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
