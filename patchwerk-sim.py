@@ -25,8 +25,9 @@ REACTION_TIME = 0.2
 HEALER_CRIT_CHANCE = 0.13
 
 # assume rough spirit score of 350
-TOTAL_PLUS_HEAL = AVERAGE_PLUS_HEAL + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + \
-    (350 * 0.25 * POINTS_IN_SPIRITUAL_GUIDANCE / 5)
+def total_plus_heal(plus_heal, healclass):
+    # this is for priests, xxx add shaman/druid
+    return plus_heal + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0) + (350 * 0.25 * POINTS_IN_SPIRITUAL_GUIDANCE / 5)
 
 import argparse
 import datetime
@@ -38,8 +39,16 @@ import numpy
 import random
 import statistics
 import sys
+import os
 
-_filepath = 'simulation_{:%Y%m%d-%H%M%S.%f}.log'.format(datetime.datetime.now())
+from patchwerk_healers import heals_config
+
+# creates logs folder if it doesn't exist
+
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+_filepath = 'logs/simulation_{:%Y%m%d-%H%M%S.%f}.log'.format(datetime.datetime.now())
 _logformat = '%(levelname)s | %(message)s | %(filename)s:%(lineno)s %(funcName)s()'
 _dateformat = '%Y%m%d-%H:%M:%S'
 _fileHandler = logging.FileHandler(_filepath)
@@ -67,13 +76,13 @@ class Tank:
         self.max_health = max_health
         self.dodge_parry = dodge_parry
         self.mitigation = mitigation
-        self.use_health_stone_when_critical = use_health_stone_when_critical
+        # self.use_health_stone_when_critical = use_health_stone_when_critical
         self.reset()
 
     def reset(self):
         self.current_health = self.max_health
         # tracks when we last used healthstone to determine if on CD
-        self._last_used_healthstone = -999
+        # self._last_used_healthstone = -999
 
     # returns a tuple (does_tank_die, damage_taken)
     # returns True if tank dies, False otherwise
@@ -113,27 +122,44 @@ class Tank:
         return '{} ({} / {})'.format(self.name, self.current_health, self.max_health)
 
 # tuple is average base healing and unmodified healing cost and cast time
+# assume priest and shaman values are the same for now
 healing_spell_data = {
-    'h2': (476, 205, 2.5),
-    'h3': (624, 255, 2.5),
-    'h4': (779.5, 305, 2.5),
-    'gh1': (981.5, 370, 2.5),
+    'priest': {
+        'h2': (476, 205, 2.5),
+        'h3': (624, 255, 2.5),
+        'h4': (779.5, 305, 2.5),
+        'gh1': (981.5, 370, 2.5),
+    },
+    'druid': {
+        'h2': (476, 205, 2.5),
+        'h3': (624, 255, 2.5),
+        'h4': (779.5, 305, 2.5),
+        'gh1': (981.5, 370, 2.5),
+    },
+    'shaman': {
+        'h2': (476, 205, 2.5),
+        'h3': (624, 255, 2.5),
+        'h4': (779.5, 305, 2.5),
+        'gh1': (981.5, 370, 2.5),
+    }, 
 }
 
 class Healer:
-    def __init__(self, entity, main_heal_used, assigned_tank_id):
-        self.entity = entity
-        self.name = 'Healer #{}'.format(entity)
+    def __init__(self, idx, main_heal_used, assigned_tank_id, plus_heal, healclass):
+        self.idx = idx
         self.main_heal_used = main_heal_used
         self.assigned_tank_id = assigned_tank_id
-        self.cast_time = healing_spell_data[self.main_heal_used][2]
+        self.plus_heal = plus_heal
+        self.healclass = healclass
+        self._spell_info = healing_spell_data.get(self.healclass)[self.main_heal_used]
+        self.cast_time = self._spell_info[2]
 
     def _get_heal_amount(self):
-        base_healing, mana_cost, cast_time = healing_spell_data.get(self.main_heal_used)
+        base_healing, mana_cost, cast_time = self._spell_info
         mana_cost *= (1 - 0.05 * POINTS_IN_IMPROVED_HEALING)
         # spirutal healing adds max of 10% to base heal
         base_healing *= (1 + POINTS_IN_SPIRITUAL_HEALING / 5 * 0.1)
-        total_healing = base_healing + 3 / 3.5 * TOTAL_PLUS_HEAL
+        total_healing = base_healing + 3 / 3.5 * total_plus_heal(self.plus_heal, self.healclass)
         if random.random() <= HEALER_CRIT_CHANCE:
             total_healing *= 1.5
         return total_healing, mana_cost, cast_time
@@ -141,9 +167,6 @@ class Healer:
     def get_heal(self):
         heal_amount, _, cast_time = self._get_heal_amount()
         return (heal_amount, cast_time, self.assigned_tank_id)
-
-    def __str__(self):
-        return self.name
 
 
 # updated hateful strike to hit every 1.2s instead of random number from 1.2 to 2s
@@ -162,7 +185,7 @@ def get_hateful_target(tanks):
 
     return tanks[highest_health_tank_index], highest_health_tank_index
 
-def run_simulation(tanks_list, healers_dict):
+def run_simulation(tanks_list, healers):
     for tank in tanks_list:
         tank.reset()
 
@@ -175,10 +198,10 @@ def run_simulation(tanks_list, healers_dict):
     heapq.heappush(event_heap, Event(PATCHWERK, 0))
 
     logging.debug("Patchwerk first Hateful Strike scheduled to land at 0 seconds")
-    for healer in healers_dict.values():
+    for healer in healers:
         start = round(random.random() * healer.cast_time, 1)
-        logging.debug("{} randomly scheduled to land first heal at {} seconds".format(healer.name, start))
-        heapq.heappush(event_heap, Event(healer.entity, start))
+        logging.debug("Healer randomly scheduled to land first heal at {} seconds".format(start))
+        heapq.heappush(event_heap, Event(healer.idx + 1, start))
 
     # for analysis
     total_raw_healing = 0
@@ -204,14 +227,14 @@ def run_simulation(tanks_list, healers_dict):
             heapq.heappush(event_heap, Event(PATCHWERK, round(elapsed + delay, 1)))
         else:
             # note that healer entities are 1-indexed while lists are 0-indexed
-            healer_idx = next_event._entity
-            healer = healers_dict[healer_idx]
+            healer_idx = next_event._entity - 1
+            healer = healers[healer_idx]
             heal_amount, cast_time, assigned_tank_id = healer.get_heal()
             raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed)
             total_raw_healing += raw_healing
             total_overhealing += overhealing
             human_delay = round(REACTION_TIME * random.random(), 1)
-            heapq.heappush(event_heap, Event(healer_idx, round(elapsed + cast_time + human_delay, 1)))
+            heapq.heappush(event_heap, Event(healer_idx + 1, round(elapsed + cast_time + human_delay, 1)))
 
     overhealing_percent = total_overhealing / total_raw_healing
     total_damage_taken = sum(damage_taken)
@@ -250,28 +273,16 @@ if __name__ == "__main__":
         Tank(name='LubbyLubba', max_health=9500, dodge_parry=0.35, mitigation=0.725),
     ]
 
-    healers = {}
-
-    # # 12 healer set up
-    # for healer_idx in range(1, 10):
-    #     assigned_tank_id = (healer_idx + 2) // 3 - 1
-    #     # test having different heals for different healers
-    #     main_heal = 'h2'if healer_idx > 3 else 'gh1'
-    #     # main_heal = 'h2'
-    #     healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
-
-    # 13 healer set up: xxx refactor to use a configurable array of healers
-    for healer_idx in range(1, 11):
-        if healer_idx <= 4:
-            assigned_tank_id = 0
-        elif healer_idx <= 7:
-            assigned_tank_id = 1
-        else:
-            assigned_tank_id = 2
-        # xxx test having different heals for different healers
-        # main_heal = 'h2' if healer_idx > 4 else 'h4'
-        main_heal = 'h4'
-        healers[healer_idx] = Healer(entity=healer_idx, main_heal_used=main_heal, assigned_tank_id=assigned_tank_id)
+    healers = []
+    for ii in range(len(heals_config)):
+        heal_config = heals_config[ii]
+        healers.append(Healer(
+            idx=ii,
+            main_heal_used=heal_config[0],
+            assigned_tank_id=heal_config[1],
+            plus_heal=heal_config[2],
+            healclass=heal_config[3],
+        ))
 
     for _ in range(number_simulations):
         survived, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentages_list = run_simulation(tanks, healers)
