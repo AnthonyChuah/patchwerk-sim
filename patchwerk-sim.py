@@ -135,10 +135,11 @@ def total_plus_heal(plus_heal):
     return plus_heal + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0)
 
 class Healer:
-    def __init__(self, idx, main_heal_used, assigned_tank_id, plus_heal, healclass):
+    def __init__(self, idx, main_heal_used, heal_sequence, plus_heal, healclass):
         self.idx = idx
         self.main_heal_used = main_heal_used
-        self.assigned_tank_id = assigned_tank_id
+        self.next_tank = 0
+        self.heal_sequence = heal_sequence
         self.plus_heal = plus_heal
         self.healclass = healclass
         self._spell_info = healing_spell_data.get(self.healclass)[self.main_heal_used]
@@ -175,10 +176,12 @@ class Healer:
 
     def get_heal(self):
         heal_amount, _, cast_time, is_crit = self._get_heal_amount()
-        return (heal_amount, cast_time, self.assigned_tank_id, is_crit)
+        heal_target = self.heal_sequence[self.next_tank]
+        self.next_tank = (self.next_tank + 1) % len(self.heal_sequence)
+        return (heal_amount, cast_time, heal_target, is_crit)
 
     def __str__(self):
-        return 'Healer #{}'.format(self.idx)
+        return '#{} ({})'.format(self.idx, self.healclass)
 
 
 # updated hateful strike to hit every 1.2s instead of random number from 1.2 to 2s
@@ -291,7 +294,7 @@ if __name__ == '__main__':
         healers.append(Healer(
             idx=ii,
             main_heal_used=heal_config[0],
-            assigned_tank_id=heal_config[1],
+            heal_sequence=heal_config[1],
             plus_heal=heal_config[2],
             healclass=heal_config[3],
         ))
