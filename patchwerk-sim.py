@@ -129,6 +129,7 @@ healing_spell_data = {
     },
     'shaman': {
         'ch1': (356.5, 247, 2.5),
+        'hw6': (595.5, 251.75, 2.5),
     }, 
 }
 
@@ -182,10 +183,10 @@ class Healer:
     def __str__(self):
         return 'Healer #{}'.format(self.idx)
 
-
+# NOTE: we are not assuming 8/8 T1 for shamans that are using Healing Wave
 class Shaman(Healer):
     # chain heal second and third bounces are in order of health deficit
-    def get_heal(self, tanks_deficits):
+    def _get_chain_heal(self, tanks_deficits):
         first_bounce, _, cast_time, is_crit_first_bounce = self._get_heal_amount()
 
         # we calculate each bounce separately (each has it's own chance to crit)
@@ -212,6 +213,14 @@ class Shaman(Healer):
         return [(first_bounce, cast_time, self.assigned_tank_id, is_crit_first_bounce),
             (second_bounce, cast_time, tanks_deficits[0][0], is_crit_second_bounce),
             (third_bounce, cast_time, tanks_deficits[1][0], is_crit_third_bounce),]
+
+    def get_heal(self, tanks_deficits):
+        if 'ch' in self.main_heal_used:
+            return self._get_chain_heal(tanks_deficits)
+
+        else:
+            heal_amount, _, cast_time, is_crit = self._get_heal_amount()
+            return [(heal_amount, cast_time, self.assigned_tank_id, is_crit)]
 
 # updated hateful strike to hit every 1.2s instead of random number from 1.2 to 2s
 def get_timetonext_hateful():
