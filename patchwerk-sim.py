@@ -89,6 +89,9 @@ class Tank:
         # xxx could simulate healthstone use
         return (False, dmg)
 
+    def get_health_deficit(self):
+        return self.max_health - self.current_health
+
     def get_damage(self):
         damage = random.random() * (29000 - 22000) + 22000
         damage *= (1 - self.mitigation)
@@ -125,10 +128,7 @@ healing_spell_data = {
         'ht7': (1050.5, 405, 2.85),
     },
     'shaman': {
-        'h2': (476, 205, 2.5),
-        'h3': (624, 255, 2.5),
-        'h4': (779.5, 305, 2.5),
-        'gh1': (981.5, 370, 2.5),
+        'ch1': (356.5, 247, 2.5),
     }, 
 }
 
@@ -156,7 +156,7 @@ class Healer:
             mana_cost *= 0.85
         
         # 10% increase to base healing talent
-        if self.healclass in ['druid', 'priest']:
+        if self.healclass in ['druid', 'priest', 'shaman']:
             base_healing *= 1.1
         
         # NOTE: Druid's HT4 and priest/shammy spells are base 3s cast time, while Druid's higher rank HT are 3.5s base cast time
@@ -174,13 +174,44 @@ class Healer:
 
         return total_healing, mana_cost, cast_time, is_crit
 
+
     def get_heal(self):
         heal_amount, _, cast_time, is_crit = self._get_heal_amount()
-        return (heal_amount, cast_time, self.assigned_tank_id, is_crit)
+        return [(heal_amount, cast_time, self.assigned_tank_id, is_crit)]
 
     def __str__(self):
         return 'Healer #{}'.format(self.idx)
 
+
+class Shaman(Healer):
+    # chain heal second and third bounces are in order of health deficit
+    def get_heal(self, tanks_deficits):
+        first_bounce, _, cast_time, is_crit_first_bounce = self._get_heal_amount()
+
+        # we calculate each bounce separately (each has it's own chance to crit)
+        non_crit_first_bounce = first_bounce if not is_crit_first_bounce else first_bounce / 1.5
+        non_crit_second_bounce = non_crit_first_bounce * 0.5 * 1.3
+        non_crit_third_bounce = non_crit_second_bounce * 0.5 * 1.3
+
+        is_crit_second_bounce = random.random() <= HEALER_CRIT_CHANCE
+        is_crit_third_bounce = random.random() <= HEALER_CRIT_CHANCE
+
+        second_bounce = non_crit_second_bounce if (not is_crit_second_bounce) else non_crit_second_bounce * 1.5
+        third_bounce = non_crit_third_bounce if (not is_crit_third_bounce) else non_crit_third_bounce * 1.5
+
+        # if is_crit_second_bounce:
+        #     print('lalala')
+        #     print(second_bounce, non_crit_second_bounce)
+
+        # second bounce goes on tank with highest health deficit
+        # we create a new list that sorts by health deficit 
+        # (ignoring the shaman's primary heal assignment as thaat will be healed by the initial chain heal)
+        del tanks_deficits[self.assigned_tank_id]
+        tanks_deficits.sort(key=lambda t: -t[1])
+
+        return [(first_bounce, cast_time, self.assigned_tank_id, is_crit_first_bounce),
+            (second_bounce, cast_time, tanks_deficits[0][0], is_crit_second_bounce),
+            (third_bounce, cast_time, tanks_deficits[1][0], is_crit_third_bounce),]
 
 # updated hateful strike to hit every 1.2s instead of random number from 1.2 to 2s
 def get_timetonext_hateful():
@@ -242,12 +273,26 @@ def run_simulation(tanks_list, healers):
             # note that healer entities are 1-indexed while lists are 0-indexed
             healer_idx = next_event._entity - 1
             healer = healers[healer_idx]
-            heal_amount, cast_time, assigned_tank_id, is_crit = healer.get_heal()
-            raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed, healer, is_crit)
-            total_raw_healing += raw_healing
-            total_overhealing += overhealing
-            human_delay = round(REACTION_TIME * random.random(), 1)
-            heapq.heappush(event_heap, Event(healer_idx + 1, round(elapsed + cast_time + human_delay, 1)))
+
+            # KIV -> refactor code to reduce coupling
+            # for shamans, we need to pass in all the health deficit amounts, so we can determine chain heal order
+            heal_data = healer.get_heal([(index, tank.get_health_deficit()) for index, tank in enumerate(tanks_list)]) \
+                if healer.healclass == 'shaman' else healer.get_heal()
+
+            # the primary heal target will be on the first row of heal_data
+            # subsequent entries are secondary heals (like chain heal bounces)
+            for heal_index, row in enumerate(heal_data):
+                heal_amount, cast_time, assigned_tank_id, is_crit = row
+                # if heal_index > 0:
+                    # logging.debug('//: {}, {}, {}'.format(heal_amount, assigned_tank_id, is_crit))
+                raw_healing, overhealing = tanks_list[assigned_tank_id].get_healed(heal_amount, elapsed, healer, is_crit)
+                total_raw_healing += raw_healing
+                total_overhealing += overhealing
+
+                # secondary bounces shouldn't spawn additional heal events
+                if heal_index == 0:
+                    human_delay = round(REACTION_TIME * random.random(), 1)
+                    heapq.heappush(event_heap, Event(healer_idx + 1, round(elapsed + cast_time + human_delay, 1)))
 
     overhealing_percent = total_overhealing / total_raw_healing
     total_damage_taken = sum(damage_taken)
@@ -289,7 +334,8 @@ if __name__ == "__main__":
     healers = []
     for ii in range(len(heals_config)):
         heal_config = heals_config[ii]
-        healers.append(Healer(
+        _class_constructor = Shaman if heal_config[3] == 'shaman' else Healer
+        healers.append(_class_constructor(
             idx=ii,
             main_heal_used=heal_config[0],
             assigned_tank_id=heal_config[1],
