@@ -87,33 +87,34 @@ heals_config = [
 ]
 """
 
-# # using CH1
-# heals_config = [
-#     ['h4', 0, 1160, 'priest'],
-#     ['h3', 0, 1160, 'priest'],
-#     ['ch1', 0, 800, 'shaman'],
-#     ['ch1', 0, 800, 'shaman'],
-
-#     ['h4', 1, 1160, 'priest'],
-#     ['ch1', 1, 800, 'shaman'],
-#     ['ht4', 1, 1030, 'druid'],
-
-#     ['h4', 2, 1160, 'priest'],
-#     ['ch1', 2, 800, 'shaman'],
-#     ['h2', 2, 1060, 'priest'],
-# ]
-
-# use priest h2 to spoof as a shaman
+# using CH1
 heals_config = [
     ['h4', 0, 1160, 'priest'],
     ['h3', 0, 1160, 'priest'],
-    ['h2', 0, 1060, 'priest'],
+    ['ch1', 0, 800, 'shaman'],
+    ['ch1', 0, 800, 'shaman'],
 
     ['h4', 1, 1160, 'priest'],
-    ['h2', 0, 1060, 'priest'],
+    ['ch1', 1, 800, 'shaman'],
     ['ht4', 1, 1030, 'druid'],
 
     ['h4', 2, 1160, 'priest'],
-    ['h2', 0, 1060, 'priest'],
+    ['ch1', 2, 800, 'shaman'],
     ['h2', 2, 1060, 'priest'],
 ]
+
+# # use priest h2 to spoof as a shaman
+# heals_config = [
+#     ['h4', 0, 1160, 'priest'],
+#     ['h4', 0, 1160, 'priest'],
+#     ['h2', 0, 1160, 'priest'],
+#     ['h2', 0, 1160, 'priest'],
+
+#     ['h4', 1, 1160, 'priest'],
+#     ['h2', 1, 1160, 'priest'],
+#     ['ht4', 1, 1030, 'druid'],
+
+#     ['h4', 2, 1160, 'priest'],
+#     ['h2', 2, 1160, 'priest'],
+#     ['h2', 2, 1160, 'priest'],
+# ]
