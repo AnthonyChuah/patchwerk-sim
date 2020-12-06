@@ -23,17 +23,16 @@ import logging
 import logging.handlers
 import math
 import numpy
+import os
 import random
 import statistics
 import sys
-import os
 
 from patchwerk_healers import heals_config
 
 # creates logs folder if it doesn't exist
 
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+os.makedirs('logs', exist_ok=True)
 
 _filepath = 'logs/simulation_{:%Y%m%d-%H%M%S.%f}.log'.format(datetime.datetime.now())
 _logformat = '%(levelname)s | %(message)s | %(filename)s:%(lineno)s %(funcName)s()'
@@ -76,14 +75,14 @@ class Tank:
     def get_smashed(self, tick):
         # check for misses
         if random.random() < self.dodge_parry:
-            logging.debug("[{:>5}s] Hateful Strike MISSES {}".format(tick, self.name))
+            logging.debug('[{:>5}s] Hateful Strike MISSES {}'.format(tick, self.name))
             return (False, 0)
 
         dmg = self.get_damage()
-        logging.debug("[{:>5}s] Hateful Strike hits {} ({} hp) for {} dmg".format(tick, self.name, self.current_health, dmg))
+        logging.debug('[{:>5}s] Hateful Strike hits {} ({} hp) for {} dmg'.format(tick, self.name, self.current_health, dmg))
         self.current_health -= dmg
         if self.current_health <= 0:
-            logging.debug("[{:>5}s] {} has DIED! ({} Overkill)".format(tick, self.name, -self.current_health))
+            logging.debug('[{:>5}s] {} has DIED! ({} Overkill)'.format(tick, self.name, -self.current_health))
             return (True, dmg)
 
         # xxx could simulate healthstone use
@@ -100,7 +99,7 @@ class Tank:
     # returns a tuple with total raw healing and overhealing
     def get_healed(self, heal_qty, tick, healer_name, is_crit):
         healing_verb = 'healed' if not is_crit else 'CRIT HEALED'
-        logging.debug("[{:2f}s] {} ({} hp) is {} for {} by {}".format(tick, self.name, self.current_health, healing_verb, heal_qty, healer_name))
+        logging.debug('[{:2f}s] {} ({} hp) is {} for {} by {}'.format(tick, self.name, self.current_health, healing_verb, heal_qty, healer_name))
         self.current_health += heal_qty
         overhealing = 0
         if self.current_health > self.max_health:
@@ -137,10 +136,11 @@ def total_plus_heal(plus_heal):
     return plus_heal + (150 if AMPLIFY_MAGIC else 0) + (75 if MAGIC_ATTUNEMENT else 0)
 
 class Healer:
-    def __init__(self, idx, main_heal_used, assigned_tank_id, plus_heal, healclass):
+    def __init__(self, idx, main_heal_used, heal_sequence, plus_heal, healclass):
         self.idx = idx
         self.main_heal_used = main_heal_used
-        self.assigned_tank_id = assigned_tank_id
+        self.next_tank = 0
+        self.heal_sequence = heal_sequence
         self.plus_heal = plus_heal
         self.healclass = healclass
         self._spell_info = healing_spell_data.get(self.healclass)[self.main_heal_used]
@@ -181,7 +181,7 @@ class Healer:
         return [(heal_amount, cast_time, self.assigned_tank_id, is_crit)]
 
     def __str__(self):
-        return 'Healer #{}'.format(self.idx)
+        return '#{} ({})'.format(self.idx, self.healclass)
 
 # NOTE: we are not assuming 8/8 T1 for shamans that are using Healing Wave
 class Shaman(Healer):
@@ -250,10 +250,10 @@ def run_simulation(tanks_list, healers):
     event_heap = []
     heapq.heappush(event_heap, Event(PATCHWERK, 0))
 
-    logging.debug("Patchwerk first Hateful Strike scheduled to land at 0 seconds")
+    logging.debug('Patchwerk first Hateful Strike scheduled to land at 0 seconds')
     for healer in healers:
         start = round(random.random() * healer.cast_time, 1)
-        logging.debug("Healer randomly scheduled to land first heal at {} seconds".format(start))
+        logging.debug('Healer randomly scheduled to land first heal at {} seconds'.format(start))
         heapq.heappush(event_heap, Event(healer.idx + 1, start))
 
     # for analysis
@@ -310,16 +310,16 @@ def run_simulation(tanks_list, healers):
     damage_taken_percentage = [dmg / total_damage_taken for dmg in damage_taken]
     hateful_strikes_taken_percentage = [num_hateful_strike / total_hateful_strikes_taken for num_hateful_strike in amount_of_hateful_strikes]
     if elapsed >= FIGHT_LENGTH:
-        logging.debug("Congrats! Patchwerk is dead")
+        logging.debug('Congrats! Patchwerk is dead')
         return (True, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
     else:
-        logging.debug("TANK DIES; WHY NO HEALS NOOBS")
+        logging.debug('TANK DIES; WHY NO HEALS NOOBS')
         return (False, overhealing_percent, damage_taken_percentage, hateful_strikes_taken_percentage)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", required=False, action="store_true", help="set debug logging")
-    parser.add_argument("--sims", required=True)
+    parser.add_argument('--debug', required=False, action='store_true', help='set debug logging')
+    parser.add_argument('--sims', required=True)
     args = parser.parse_args()
 
     if args.debug:
@@ -347,7 +347,7 @@ if __name__ == "__main__":
         healers.append(_class_constructor(
             idx=ii,
             main_heal_used=heal_config[0],
-            assigned_tank_id=heal_config[1],
+            heal_sequence=heal_config[1],
             plus_heal=heal_config[2],
             healclass=heal_config[3],
         ))
